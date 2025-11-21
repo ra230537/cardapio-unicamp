@@ -1,0 +1,188 @@
+{
+	"interactionModel": {
+		"languageModel": {
+			"invocationName": "olá mundo",
+			"intents": [
+				{
+					"name": "AMAZON.CancelIntent",
+					"samples": []
+				},
+				{
+					"name": "AMAZON.HelpIntent",
+					"samples": []
+				},
+				{
+					"name": "AMAZON.StopIntent",
+					"samples": []
+				},
+				{
+					"name": "AlmocoIntent",
+					"slots": [],
+					"samples": [
+						"qual é o almoço de hoje",
+						"qual é o almoço",
+						"me diga o almoço",
+						"me fale o almoço",
+						"quero saber o almoço",
+						"o que tem para o almoço",
+						"almoço"
+					]
+				},
+				{
+					"name": "JantarIntent",
+					"slots": [],
+					"samples": [
+						"qual é a janta de hoje",
+						"qual é a janta",
+						"me diga a janta",
+						"me fale a janta",
+						"quero saber a janta",
+						"o que tem para a janta",
+						"janta"
+					]
+				},
+				{
+					"name": "CardapioIntent",
+					"slots": [],
+					"samples": [
+						"qual é o cardapio de hoje",
+						"qual é o cardapio",
+						"me diga o cardapio",
+						"me fale o cardapio",
+						"quero saber o cardapio",
+						"o que tem para o cardapio",
+						"cardapio"
+					]
+				},
+				{
+					"name": "AlmocoAmanhaIntent",
+					"slots": [],
+					"samples": [
+						"qual é o almoço de amanhã",
+						"me diga o almoço de amanhã",
+						"me fale o almoço de amanhã",
+						"quero saber o almoço de amanhã",
+						"o que tem para o almoço de amanhã",
+						"almoço de amanhã"
+					]
+				},
+				{
+					"name": "JantarAmanhaIntent",
+					"slots": [],
+					"samples": [
+						"qual é a janta de amanhã",
+						"qual é a janta de amanhã",
+						"me diga a janta de amanhã",
+						"me fale a janta de amanhã",
+						"quero saber a janta de amanhã",
+						"o que tem para a janta de amanhã",
+						"janta de amanhã"
+					]
+				},
+				{
+					"name": "CardapioAmanhaIntent",
+					"slots": [],
+					"samples": [
+						"qual é o cardapio de amanhã",
+						"qual é o cardapio de amanhã",
+						"me diga o cardapio de amanhã",
+						"me fale o cardapio de amanhã",
+						"quero saber o cardapio de amanhã",
+						"o que tem para o cardapio de amanhã",
+						"cardapio de amanhã"
+					]
+				},
+				{
+					"name": "PeixeIntent",
+					"slots": [],
+					"samples": [
+						"quando vai ter peixe",
+						"tem peixe essa semana",
+						"qual o dia do peixe"
+					]
+				},
+				{
+					"name": "AlmocoVeganoIntent",
+					"slots": [],
+					"samples": [
+						"qual é o almoço vegano de hoje",
+						"qual é o almoço vegano",
+						"me diga o almoço vegano",
+						"me fale o almoço vegano",
+						"quero saber o almoço vegano",
+						"o que tem para o almoço vegano",
+						"almoço vegano"
+					]
+				},
+				{
+					"name": "JantarVeganoIntent",
+					"slots": [],
+					"samples": [
+						"qual é a janta vegana de hoje",
+						"qual é a janta vegana",
+						"me diga a janta vegana",
+						"me fale a janta vegana",
+						"quero saber a janta vegana",
+						"o que tem para a janta vegana",
+						"janta vegana"
+					]
+				},
+				{
+					"name": "CardapioVeganoIntent",
+					"slots": [],
+					"samples": [
+						"qual é o cardapio vegano de hoje",
+						"qual é o cardapio vegano",
+						"me diga o cardapio vegano",
+						"me fale o cardapio vegano",
+						"quero saber o cardapio vegano",
+						"o que tem para o cardapio vegano",
+						"cardapio vegano"
+					]
+				},
+				{
+					"name": "AlmocoAmanhaVeganoIntent",
+					"slots": [],
+					"samples": [
+						"qual é o almoço vegano de amanhã",
+						"me diga o almoço vegano de amanhã",
+						"me fale o almoço vegano de amanhã",
+						"quero saber o almoço vegano de amanhã",
+						"o que tem para o almoço vegano de amanhã",
+						"almoço vegano de amanhã"
+					]
+				},	
+				{
+					"name": "JantarAmanhaVeganoIntent",
+					"slots": [],
+					"samples": [
+						"qual é a janta vegana de amanhã",
+						"me diga a janta vegana de amanhã",
+						"me fale a janta vegana de amanhã",
+						"quero saber a janta vegana de amanhã",
+						"o que tem para a janta vegana de amanhã",
+						"janta vegana de amanhã"
+					]
+				},
+				{
+					"name": "CardapioAmanhaVeganoIntent",
+					"slots": [],
+					"samples": [
+						"qual é o cardapio vegano de amanhã",
+						"qual é o cardapio vegano de amanhã",
+						"me diga o cardapio vegano de amanhã",
+						"me fale o cardapio vegano de amanhã",
+						"quero saber o cardapio vegano de amanhã",
+						"o que tem para o cardapio vegano de amanhã",
+						"cardapio vegano de amanhã"
+					]
+				},
+				{
+					"name": "AMAZON.NavigateHomeIntent",
+					"samples": []
+				}
+			],
+			"types": []
+		}
+	}
+}

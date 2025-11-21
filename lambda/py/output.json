@@ -1,0 +1,34 @@
+{
+  "Almoco": [
+    "Almoço",
+    "BIFE DE PANELA",
+    "CHUCHU NA SALSA - (HC, CAISM) MANDIOQUINHA COM VAGEM (RS)",
+    "SALADA DE CENOURA RALADA (HC,CAISM) E ALMEIRÃO E ACELGA (RS)",
+    "DOCE DE ABÓBORA",
+    "NÃO CONTÉM LACTOSE NEM OVOS."
+  ],
+  "Almoco_veg": [
+    "Almoço Vegano",
+    "TORTA DE GRÃO-DE-BICO",
+    "CHUCHU NA SALSA - (HC, CAISM) MANDIOQUINHA COM VAGEM (RS)",
+    "SALADA DE CENOURA RALADA (HC E CAISM) E ALMEIRÃO E ACELGA(RS)",
+    "DOCE DE ABÓBORA",
+    "NÃO CONTÉM LACTOSE NEM OVOS."
+  ],
+  "Jantar": [
+    "Jantar",
+    "SOBRECOXA DE FRANGO AO MOLHO DE AZEITONAS",
+    "ACELGA REFOGADA",
+    "SALADA DE ESCAROLA",
+    "MAÇÃ",
+    "NÃO CONTÉM LACTOSE NEM OVOS."
+  ],
+  "Jantar_veg": [
+    "Jantar Vegano",
+    "STROGONOFF DE LENTILHA COM PALMITO",
+    "ACELGA REFOGADA",
+    "SALADA DE ESCAROLA",
+    "MAÇÃ",
+    "NÃO CONTÉM LACTOSE NEM OVOS."
+  ]
+}

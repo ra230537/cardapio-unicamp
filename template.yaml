@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Alexa Skill - Cardapio do Bandeco
+  
+  SAM Template for Alexa Skill that provides university cafeteria menu information
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 256
+
+Resources:
+  AlexaSkillFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: AlexaSkillCardapioBandeco
+      Description: Lambda function for Alexa Skill - Cardapio do Bandeco
+      CodeUri: lambda/py/
+      Handler: hello_world.handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      Events:
+        AlexaSkillEvent:
+          Type: AlexaSkill
+      Policies:
+        - Statement:
+          - Sid: CloudWatchLogsPolicy
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*'
+
+Outputs:
+  AlexaSkillFunctionArn:
+    Description: "ARN da função Lambda para configurar no Alexa Developer Console"
+    Value: !GetAtt AlexaSkillFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-AlexaSkillFunctionArn"
+  
+  AlexaSkillFunctionName:
+    Description: "Nome da função Lambda"
+    Value: !Ref AlexaSkillFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionName"
