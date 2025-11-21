@@ -23,8 +23,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 class handleData:
-    def __init__(self):
-        pass
     def get_cardapio(self, date):
         format_date = date.strftime('%Y-%m-%d')
         url = f'https://sistemas.prefeitura.unicamp.br/apps/cardapio/index.php?d={format_date}'
@@ -78,45 +76,56 @@ class handleData:
         
         return self.filter_menu(dict_menu)
 
-    def filter_menu(self, extracted_menu):
+    @staticmethod
+    def _normalize_parentheses(text):
+        """Normaliza expressões de locais entre parênteses."""
         import re
-        def _normalize_parentheses(text: str) -> str:
-            pattern = re.compile(r'\(([^)]*)\)')
-            allowed = {"RS", "RA", "RU", "HC", "CAISM"}
-            def repl(m):
-                raw = m.group(1)
-                tokens = [t.strip() for t in raw.split(',') if t.strip()]
-                locs = [t for t in tokens if t in allowed]
-                if not locs:
-                    return m.group(0)
-                if len(locs) == 1:
-                    return f" no {locs[0]}. "
-                if len(locs) == 2:
-                    return f" no {locs[0]} e no {locs[1]}. "
-                return " " + ", ".join([f"no {loc}" for loc in locs[:-1]]) + f" e no {locs[-1]}. "
-            return pattern.sub(repl, text)
+        pattern = re.compile(r'\(([^)]*)\)')
+        allowed = {"RS", "RA", "RU", "HC", "CAISM"}
+        
+        def repl(m):
+            tokens = [t.strip() for t in m.group(1).split(',') if t.strip()]
+            locs = [t for t in tokens if t in allowed]
+            if not locs:
+                return m.group(0)
+            if len(locs) == 1:
+                return f" no {locs[0]}. "
+            if len(locs) == 2:
+                return f" no {locs[0]} e no {locs[1]}. "
+            return " " + ", ".join([f"no {loc}" for loc in locs[:-1]]) + f" e no {locs[-1]}. "
+        
+        return pattern.sub(repl, text)
+    
+    @staticmethod
+    def _apply_phonemes(text):
+        """Aplica phonemes SSML para pronúncia correta."""
+        replacements = {
+            'CAISM': '<phoneme alphabet="x-sampa" ph="ka\'i:zmi">CAISM</phoneme>',
+            'RU': '<phoneme alphabet="x-sampa" ph="E.xi\'u">RU</phoneme>',
+            'RS': '<phoneme alphabet="x-sampa" ph="E.xiE\'si">RS</phoneme>',
+            'HC': '<phoneme alphabet="x-sampa" ph="a\'gase">HC</phoneme>',
+            'RA': '<phoneme alphabet="x-sampa" ph="E.xi\'a">RA</phoneme>',
+        }
+        for key, value in replacements.items():
+            text = text.replace(key, value)
+        return text
+
+    def filter_menu(self, extracted_menu):
+        """Filtra e normaliza itens do menu."""
+        exclude_terms = ['observações:', 'glúten', 'cardápio vegano será servido', 
+                        'arroz e feijão', 'arroz integral e feijão', 'refresco']
+        
         for key, value in extracted_menu.items():
             items_list = []
             for item in value:
-                # Normaliza grupos entre parênteses antes de quebrar por linhas
-                item = _normalize_parentheses(item)
-                splitted_item = item.replace('\n', '#').split('#')
-                items_list.extend(splitted_item)
-            items_list = [x for x in items_list if x]
-            items_list = [x for x in items_list if 'Observações:'.upper() not in x.upper()]
-            items_list = [x for x in items_list if 'Glúten'.upper() not in x.upper()]
-            items_list = [x for x in items_list if 'cardápio vegano será servido'.upper() not in x.upper()]
-            items_list = [x for x in items_list if 'ARROZ E FEIJÃO'.upper() not in x.upper()]
-            items_list = [x for x in items_list if 'ARROZ INTEGRAL E FEIJÃO'.upper() not in x.upper()]
-            items_list = [x for x in items_list if 'REFRESCO'.upper() not in x.upper()]
-            # Reaplica normalização caso algum item tenha novos grupos
-            items_list = [_normalize_parentheses(x) for x in items_list]
-            items_list = [x.replace('CAISM', '<phoneme alphabet="x-sampa" ph="ka\'i:zmi">CAISM</phoneme>') for x in items_list]
-            items_list = [x.replace('RU', '<phoneme alphabet="x-sampa" ph="E.xi\'u">RU</phoneme>') for x in items_list]
-            items_list = [x.replace('RS', '<phoneme alphabet="x-sampa" ph="E.xiE\'si">RS</phoneme>') for x in items_list]
-            items_list = [x.replace('HC', '<phoneme alphabet="x-sampa" ph="a\'gase">HC</phoneme>') for x in items_list]
-            items_list = [x.replace('RA', '<phoneme alphabet="x-sampa" ph="E.xi\'a">RA</phoneme>') for x in items_list]
+                item = self._normalize_parentheses(item)
+                items_list.extend(item.replace('\n', '#').split('#'))
+            
+            items_list = [x for x in items_list if x and 
+                         not any(term in x.lower() for term in exclude_terms)]
+            items_list = [self._apply_phonemes(self._normalize_parentheses(x)) for x in items_list]
             extracted_menu[key] = items_list
+        
         return extracted_menu
 
     def print_menu_phrase(self, extracted_menu, key):
@@ -164,48 +173,47 @@ class LaunchRequestHandler(AbstractRequestHandler):
         )
 
 
-# Usado para usuário que sabe usar a skill
-class HelloWorldIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
+# Handler genérico para cardápios - consolida 12 handlers em 1
+class CardapioGenericoIntentHandler(AbstractRequestHandler):
+    """Handler genérico para todas as intents de cardápio."""
+    
+    INTENT_MAP = {
+        'AlmocoIntent': {'dias': 0, 'refeicoes': ['Almoco']},
+        'JantarIntent': {'dias': 0, 'refeicoes': ['Jantar']},
+        'CardapioIntent': {'dias': 0, 'refeicoes': ['Almoco', 'Jantar']},
+        'AlmocoAmanhaIntent': {'dias': 1, 'refeicoes': ['Almoco']},
+        'JantarAmanhaIntent': {'dias': 1, 'refeicoes': ['Jantar']},
+        'CardapioAmanhaIntent': {'dias': 1, 'refeicoes': ['Almoco', 'Jantar']},
+        'AlmocoVeganoIntent': {'dias': 0, 'refeicoes': ['Almoco_veg']},
+        'JantarVeganoIntent': {'dias': 0, 'refeicoes': ['Jantar_veg']},
+        'CardapioVeganoIntent': {'dias': 0, 'refeicoes': ['Almoco_veg', 'Jantar_veg']},
+        'AlmocoAmanhaVeganoIntent': {'dias': 1, 'refeicoes': ['Almoco_veg']},
+        'JantarAmanhaVeganoIntent': {'dias': 1, 'refeicoes': ['Jantar_veg']},
+        'CardapioAmanhaVeganoIntent': {'dias': 1, 'refeicoes': ['Almoco_veg', 'Jantar_veg']},
+    }
 
     def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("HelloWorldIntent")(handler_input)
+        intent_name = ask_utils.get_intent_name(handler_input)
+        return intent_name in self.INTENT_MAP
 
     def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        _ = handler_input.attributes_manager.request_attributes["_"]
-        speak_output = _(data.HELLO_MSG)
-
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-# Usado para usuário que sabe usar a skill
-class AlmocoIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("AlmocoIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
+        intent_name = ask_utils.get_intent_name(handler_input)
+        config = self.INTENT_MAP[intent_name]
+        
         handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now())
+        data_busca = datetime.datetime.now() + datetime.timedelta(days=config['dias'])
+        html = handler.get_cardapio(data_busca)
         extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Almoco')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
+        
+        speak_output = ''.join(
+            handler.print_menu_phrase(extracted_menu, refeicao) 
+            for refeicao in config['refeicoes']
         )
+        
+        return handler_input.response_builder.speak(speak_output).response
 
-class JantarIntentHandler(AbstractRequestHandler):
+
+class HelpIntentHandler(AbstractRequestHandler):
     """Handler for Hello World Intent."""
 
     def can_handle(self, handler_input):
@@ -225,212 +233,6 @@ class JantarIntentHandler(AbstractRequestHandler):
             .response
         )
 
-class CardapioIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("CardapioIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now())
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Almoco')
-        speak_output += handler.print_menu_phrase(extracted_menu, 'Jantar')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-
-class AlmocoAmanhaIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("AlmocoAmanhaIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now()+datetime.timedelta(days=1))
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Almoco')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-class JantarAmanhaIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("JantarAmanhaIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now()+datetime.timedelta(days=1))
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Jantar')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-class CardapioAmanhaIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("CardapioAmanhaIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now()+datetime.timedelta(days=1))
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Almoco')
-        speak_output += handler.print_menu_phrase(extracted_menu, 'Jantar')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-##### Vegano #####
-
-class AlmocoVeganoIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("AlmocoVeganoIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now())
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Almoco_veg')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-class JantarVeganoIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("JantarVeganoIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now())
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Jantar_veg')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-class CardapioVeganoIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("CardapioVeganoIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now())
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Almoco_veg')
-        speak_output += handler.print_menu_phrase(extracted_menu, 'Jantar_veg')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-class AlmocoAmanhaVeganoIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("AlmocoAmanhaVeganoIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now()+datetime.timedelta(days=1))
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Almoco_veg')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-class JantarAmanhaVeganoIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("JantarAmanhaVeganoIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now()+datetime.timedelta(days=1))
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Jantar_veg')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
-
-class CardapioAmanhaVeganoIntentHandler(AbstractRequestHandler):
-    """Handler for Hello World Intent."""
-
-    def can_handle(self, handler_input):
-        # type: (HandlerInput) -> bool
-        return ask_utils.is_intent_name("CardapioAmanhaVeganoIntent")(handler_input)
-
-    def handle(self, handler_input):
-        # type: (HandlerInput) -> Response
-        handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now()+datetime.timedelta(days=1))
-        extracted_menu = handler.extract_menu(html)
-        speak_output = handler.print_menu_phrase(extracted_menu, 'Almoco_veg')
-        speak_output += handler.print_menu_phrase(extracted_menu, 'Jantar_veg')
-        return (
-            handler_input.response_builder
-            .speak(speak_output)
-            # .ask("add a reprompt if you want to keep the session open for the user to respond")
-            .response
-        )
 
 
 class HelpIntentHandler(AbstractRequestHandler):
@@ -569,28 +371,14 @@ class LocalizationInterceptor(AbstractRequestInterceptor):
 sb = SkillBuilder()
 
 sb.add_request_handler(LaunchRequestHandler())
-sb.add_request_handler(HelloWorldIntentHandler())
-sb.add_request_handler(AlmocoIntentHandler())
-sb.add_request_handler(JantarIntentHandler())
-sb.add_request_handler(CardapioIntentHandler())
-sb.add_request_handler(AlmocoAmanhaIntentHandler())
-sb.add_request_handler(JantarAmanhaIntentHandler())
-sb.add_request_handler(CardapioAmanhaIntentHandler())
-sb.add_request_handler(AlmocoVeganoIntentHandler())
-sb.add_request_handler(JantarVeganoIntentHandler())
-sb.add_request_handler(CardapioVeganoIntentHandler())
-sb.add_request_handler(AlmocoAmanhaVeganoIntentHandler())
-sb.add_request_handler(JantarAmanhaVeganoIntentHandler())
-sb.add_request_handler(CardapioAmanhaVeganoIntentHandler())
+sb.add_request_handler(CardapioGenericoIntentHandler())  # Substitui 12 handlers
 sb.add_request_handler(HelpIntentHandler())
 sb.add_request_handler(CancelOrStopIntentHandler())
 sb.add_request_handler(FallbackIntentHandler())
 sb.add_request_handler(SessionEndedRequestHandler())
-# make sure IntentReflectorHandler is last so it doesn't override your custom intent handlers
-sb.add_request_handler(IntentReflectorHandler())
+sb.add_request_handler(IntentReflectorHandler())  # Mantém por último
 
 sb.add_global_request_interceptor(LocalizationInterceptor())
-
 sb.add_exception_handler(CatchAllExceptionHandler())
 
 handler = sb.lambda_handler()
