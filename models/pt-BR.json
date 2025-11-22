@@ -51,7 +51,8 @@
 						"me fale o cardapio",
 						"quero saber o cardapio",
 						"o que tem para o cardapio",
-						"cardapio"
+						"cardapio",
+						"O que tem pra comer hoje"
 					]
 				},
 				{
@@ -89,7 +90,8 @@
 						"me fale o cardapio de amanhã",
 						"quero saber o cardapio de amanhã",
 						"o que tem para o cardapio de amanhã",
-						"cardapio de amanhã"
+						"cardapio de amanhã",
+						"O que tem pra comer amanhã"
 					]
 				},
 				{

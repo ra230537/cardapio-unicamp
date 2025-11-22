@@ -7,6 +7,7 @@
 import logging
 import gettext
 from urllib import response
+import pytz
 import requests
 from bs4 import BeautifulSoup
 import datetime
@@ -78,37 +79,36 @@ class handleData:
 
     @staticmethod
     def _normalize_parentheses(text):
-        """Normaliza expressões de locais entre parênteses."""
+        """Normaliza expressões de locais entre parênteses e aplica phonemes apenas nas siglas dos restaurantes."""
         import re
         pattern = re.compile(r'\(([^)]*)\)')
         allowed = {"RS", "RA", "RU", "HC", "CAISM"}
         
-        def repl(m):
-            tokens = [t.strip() for t in m.group(1).split(',') if t.strip()]
-            locs = [t for t in tokens if t in allowed]
-            if not locs:
-                return m.group(0)
-            if len(locs) == 1:
-                return f" no {locs[0]}. "
-            if len(locs) == 2:
-                return f" no {locs[0]} e no {locs[1]}. "
-            return " " + ", ".join([f"no {loc}" for loc in locs[:-1]]) + f" e no {locs[-1]}. "
-        
-        return pattern.sub(repl, text)
-    
-    @staticmethod
-    def _apply_phonemes(text):
-        """Aplica phonemes SSML para pronúncia correta."""
-        replacements = {
+        # Mapeamento de phonemes para as siglas
+        phonemes = {
             'CAISM': '<phoneme alphabet="x-sampa" ph="ka\'i:zmi">CAISM</phoneme>',
             'RU': '<phoneme alphabet="x-sampa" ph="E.xi\'u">RU</phoneme>',
             'RS': '<phoneme alphabet="x-sampa" ph="E.xiE\'si">RS</phoneme>',
             'HC': '<phoneme alphabet="x-sampa" ph="a\'gase">HC</phoneme>',
             'RA': '<phoneme alphabet="x-sampa" ph="E.xi\'a">RA</phoneme>',
         }
-        for key, value in replacements.items():
-            text = text.replace(key, value)
-        return text
+        
+        def repl(m):
+            tokens = [t.strip() for t in m.group(1).split(',') if t.strip()]
+            locs = [t for t in tokens if t in allowed]
+            if not locs:
+                return m.group(0)
+            
+            # Aplica phonemes apenas nas siglas dentro dos parênteses
+            locs_with_phonemes = [phonemes.get(loc, loc) for loc in locs]
+            
+            if len(locs_with_phonemes) == 1:
+                return f" no {locs_with_phonemes[0]}. "
+            if len(locs_with_phonemes) == 2:
+                return f" no {locs_with_phonemes[0]} e no {locs_with_phonemes[1]}. "
+            return " " + ", ".join([f"no {loc}" for loc in locs_with_phonemes[:-1]]) + f" e no {locs_with_phonemes[-1]}. "
+        
+        return pattern.sub(repl, text)
 
     def filter_menu(self, extracted_menu):
         """Filtra e normaliza itens do menu."""
@@ -118,12 +118,12 @@ class handleData:
         for key, value in extracted_menu.items():
             items_list = []
             for item in value:
+                # Aplica normalização de parênteses (que já inclui phonemes)
                 item = self._normalize_parentheses(item)
                 items_list.extend(item.replace('\n', '#').split('#'))
             
             items_list = [x for x in items_list if x and 
                          not any(term in x.lower() for term in exclude_terms)]
-            items_list = [self._apply_phonemes(self._normalize_parentheses(x)) for x in items_list]
             extracted_menu[key] = items_list
         
         return extracted_menu
@@ -179,20 +179,22 @@ class CardapioGenericoIntentHandler(AbstractRequestHandler):
     
     INTENT_MAP = {
         'AlmocoIntent': {'dias': 0, 'refeicoes': ['Almoco']},
-        'JantarIntent': {'dias': 0, 'refeicoes': ['Jantar']},
-        'CardapioIntent': {'dias': 0, 'refeicoes': ['Almoco', 'Jantar']},
-        'AlmocoAmanhaIntent': {'dias': 1, 'refeicoes': ['Almoco']},
-        'JantarAmanhaIntent': {'dias': 1, 'refeicoes': ['Jantar']},
-        'CardapioAmanhaIntent': {'dias': 1, 'refeicoes': ['Almoco', 'Jantar']},
         'AlmocoVeganoIntent': {'dias': 0, 'refeicoes': ['Almoco_veg']},
+        'JantarIntent': {'dias': 0, 'refeicoes': ['Jantar']},
         'JantarVeganoIntent': {'dias': 0, 'refeicoes': ['Jantar_veg']},
+        'CardapioIntent': {'dias': 0, 'refeicoes': ['Almoco', 'Jantar']},
         'CardapioVeganoIntent': {'dias': 0, 'refeicoes': ['Almoco_veg', 'Jantar_veg']},
+        'AlmocoAmanhaIntent': {'dias': 1, 'refeicoes': ['Almoco']},
         'AlmocoAmanhaVeganoIntent': {'dias': 1, 'refeicoes': ['Almoco_veg']},
+        'JantarAmanhaIntent': {'dias': 1, 'refeicoes': ['Jantar']},
         'JantarAmanhaVeganoIntent': {'dias': 1, 'refeicoes': ['Jantar_veg']},
+        'CardapioAmanhaIntent': {'dias': 1, 'refeicoes': ['Almoco', 'Jantar']},
         'CardapioAmanhaVeganoIntent': {'dias': 1, 'refeicoes': ['Almoco_veg', 'Jantar_veg']},
     }
 
     def can_handle(self, handler_input):
+        if not ask_utils.is_request_type("IntentRequest")(handler_input):
+            return False
         intent_name = ask_utils.get_intent_name(handler_input)
         return intent_name in self.INTENT_MAP
 
@@ -201,7 +203,8 @@ class CardapioGenericoIntentHandler(AbstractRequestHandler):
         config = self.INTENT_MAP[intent_name]
         
         handler = handleData()
-        data_busca = datetime.datetime.now() + datetime.timedelta(days=config['dias'])
+        brazil_timezone = pytz.timezone('America/Sao_Paulo')
+        data_busca = datetime.datetime.now(brazil_timezone) + datetime.timedelta(days=config['dias'])
         html = handler.get_cardapio(data_busca)
         extracted_menu = handler.extract_menu(html)
         
@@ -223,7 +226,8 @@ class HelpIntentHandler(AbstractRequestHandler):
     def handle(self, handler_input):
         # type: (HandlerInput) -> Response
         handler = handleData()
-        html = handler.get_cardapio(datetime.datetime.now())
+        brazil_timezone = pytz.timezone('America/Sao_Paulo')
+        html = handler.get_cardapio(datetime.datetime.now(brazil_timezone))
         extracted_menu = handler.extract_menu(html)
         speak_output = handler.print_menu_phrase(extracted_menu, 'Jantar')
         return (
